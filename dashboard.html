@@ -1,0 +1,89 @@
+<!-- В секцию <head>, перед закрывающимся </head>, добавь эти две строки -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- В секцию <body>, сразу после тега <h1>, добавь блок для карты -->
+<div id="map" style="height: 400px; width: 100%; border-radius: 5px; margin-bottom: 20px;"></div>
+
+<!-- А теперь замени весь твой старый <script> на этот новый -->
+<script>
+    let map;
+    const markers = new L.FeatureGroup(); // Группа для всех маркеров
+
+    // Инициализируем карту при первой загрузке
+    function initMap() {
+        map = L.map('map').setView([55.75, 37.61], 10); // Москва по умолчанию
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+    }
+    
+    async function loadLogs() {
+        const statusEl = document.getElementById('status');
+        const logBody = document.getElementById('log-body');
+        
+        statusEl.textContent = "Запрашиваем данные с сервера...";
+        logBody.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/location');
+            if (!response.ok) {
+                throw new Error(`Ошибка сервера: ${response.status}`);
+            }
+            
+            const logText = await response.text();
+            statusEl.textContent = `Последнее обновление: ${new Date().toLocaleTimeString()}`;
+            
+            if (!logText.trim()) {
+                logBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Лог файл пуст...</td></tr>';
+                return;
+            }
+            
+            // Очищаем старые маркеры с карты
+            markers.clearLayers();
+
+            const logLines = logText.trim().split('\n');
+            let lastCoords = [55.75, 37.61];
+
+            logLines.reverse().forEach(line => {
+                const parts = line.split(' | ');
+                if (parts.length >= 4) {
+                    const row = logBody.insertRow();
+                    
+                    row.insertCell(0).textContent = parts[0].replace('T', ' ');
+                    row.insertCell(1).textContent = parts[1].replace('Device: ', '');
+
+                    const lat = parseFloat(parts[2].replace('Lat: ', ''));
+                    const lon = parseFloat(parts[3].replace('Lon: ', ''));
+                    lastCoords = [lat, lon];
+
+                    const mapCell = row.insertCell(2);
+                    mapCell.textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+
+                    // Добавляем маркер на карту
+                    const marker = L.marker([lat, lon]).bindPopup(`Точка в ${parts[0].replace('T', ' ')}`);
+                    markers.addLayer(marker);
+                }
+            });
+            
+            // Добавляем все маркеры на карту
+            markers.addTo(map);
+            // Центрируем карту на самой последней точке
+            map.setView(lastCoords, 15);
+
+        } catch (error) {
+            console.error('Не удалось загрузить логи:', error);
+            statusEl.textContent = `❌ Ошибка: ${error.message}`;
+            logBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: red;">Не удалось подключиться к серверу.</td></tr>';
+        }
+    }
+
+    // Запускаем всё
+    document.addEventListener("DOMContentLoaded", function() {
+        initMap();
+        loadLogs();
+    });
+</script>
+
+<!-- И в CSS стилях, убери лишний столбец из таблицы -->
+<!-- Просто удали <th>🗺️ Карта</th> и соответствующий <td> -->
