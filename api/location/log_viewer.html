@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель слежки... то есть, отслеживания</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+        h1 {
+            text-align: center;
+            color: #bb86fc;
+        }
+        .refresh-btn {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            background: #03dac6;
+            color: #121212;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .refresh-btn:hover {
+            background: #3700b3;
+            color: #e0e0e0;
+        }
+        .status-text {
+            text-align: center;
+            font-style: italic;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background-color: #1e1e1e;
+            font-weight: bold;
+            color: #03dac6;
+        }
+        tr:nth-child(even) {
+            background-color: #1a1a1a;
+        }
+        tr:hover {
+            background-color: #252526;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌍 Панель отслеживания</h1>
+        <p class="status-text" id="status">Загрузка данных...</p>
+        <button class="refresh-btn" onclick="loadLogs()">🔄 Обновить</button>
+        <table id="log-table">
+            <thead>
+                <tr>
+                    <th>📅 Время</th>
+                    <th>📱 Устройство</th>
+                    <th>📍 Координаты</th>
+                    <th>🗺️ Карта</th>
+                </tr>
+            </thead>
+            <tbody id="log-body">
+                <!-- Сюда JavaScript впишет все данные -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadLogs() {
+            const statusEl = document.getElementById('status');
+            const logBody = document.getElementById('log-body');
+            
+            statusEl.textContent = "Запрашиваем данные с сервера...";
+            logBody.innerHTML = ''; // Очищаем таблицу перед заполнением
+
+            try {
+                // Наш API-эндпоинт, который ты так долго не мог создать
+                const response = await fetch('/api/location');
+                
+                if (!response.ok) {
+                    throw new Error(`Ошибка сервера: ${response.status}`);
+                }
+                
+                const logText = await response.text();
+                statusEl.textContent = `Последнее обновление: ${new Date().toLocaleTimeString()}`;
+                
+                if (!logText.trim()) {
+                    logBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Лог файл пуст. Ждем первого пинга от клиента...</td></tr>';
+                    return;
+                }
+
+                // Разбираем текст на строки, а строки на части
+                const logLines = logText.trim().split('\n');
+                
+                // Разворачиваем массив, чтобы самые свежие данные были сверху
+                logLines.reverse().forEach(line => {
+                    const parts = line.split(' | ');
+                    // Проверяем, что строка корректна
+                    if (parts.length >= 4) {
+                        const row = logBody.insertRow();
+                        
+                        const timeCell = row.insertCell(0);
+                        timeCell.textContent = parts[0].replace('T', ' ');
+
+                        const deviceCell = row.insertCell(1);
+                        deviceCell.textContent = parts[1].replace('Device: ', '');
+
+                        const lat = parts[2].replace('Lat: ', '');
+                        const lon = parts[3].replace('Lon: ', '');
+                        const coordsCell = row.insertCell(2);
+                        coordsCell.textContent = `${lat}, ${lon}`;
+
+                        const mapCell = row.insertCell(3);
+                        const mapLink = document.createElement('a');
+                        // Создаем прямую ссылку на Google Maps для этой точки
+                        mapLink.href = `https://www.google.com/maps?q=${lat},${lon}`;
+                        mapLink.textContent = "Показать на карте";
+                        mapLink.target = "_blank"; // Открывать в новой вкладке
+                        mapLink.style.color = '#bb86fc';
+                        mapCell.appendChild(mapLink);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Не удалось загрузить логи:', error);
+                statusEl.textContent = `❌ Ошибка: ${error.message}`;
+                logBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: red;">Не удалось подключиться к серверу или прочитать лог.</td></tr>';
+            }
+        }
+
+        // Загружаем логи при первой загрузке страницы
+        loadLogs();
+
+        // Можно добавить автообновление каждые 30 секунд, если хочешь
+        // setInterval(loadLogs, 30000);
+    </script>
+</body>
+</html>
