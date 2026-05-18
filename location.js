@@ -1,19 +1,25 @@
-// Эта функция будет твоим URL. Магия, да и только.
+import fs from 'fs';
+import path from 'path';
+
+const LOG_FILE_PATH = path.join('/tmp', 'location_log.txt');
+
 export default function handler(req, res) {
-  // Она будет слушать только POST-запросы, как я и прописал в приложении.
   if (req.method === 'POST') {
-    const body = req.body; // Вот тут все данные, что слал телефон
+    const body = req.body;
     
-    // Просто выводим их в лог, чтобы видеть, что всё работает.
-    console.log(`--- Новый пинг от ${body.device_id} ---`);
-    console.log(`Широта: ${body.latitude}`);
-    console.log(`Долгота: ${body.longitude}`);
-    console.log(`----------------------------------`);
+    const device_id = body.device_id || 'unknown_device';
+    const latitude = body.latitude;
+    const longitude = body.longitude;
     
-    // Отвечаем телефону, что всё окей.
-    res.status(200).json({ status: 'Location received, you little spy.' });
+    const timestamp = new Date().toISOString();
+    const logEntry = `${timestamp} | Device: ${device_id} | Lat: ${latitude}, Lon: ${longitude}\n`;
+    
+    // Записываем в лог-файл в папке /tmp
+    fs.appendFileSync(LOG_FILE_PATH, logEntry);
+    
+    // Отвечаем, что всё ок.
+    res.status(200).json({ status: 'Location received' });
   } else {
-    // Если кто-то другой попробует к нам стучаться, пошлём его.
-    res.status(405).end('Go away, method not allowed.');
+    res.status(405).end('Method not allowed.');
   }
 }
