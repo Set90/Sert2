@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Location Tracker</title>
+    <style>
+        body { font-family: 'Courier New', sans-serif; background: #1a1a1a; color: #e0e0e0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; border: 1px solid #444; text-align: left; }
+        th { background-color: #252526; }
+        .refresh-btn { padding: 10px 20px; background: #0078d4; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Логи геолокации</h1>
+    <button class="refresh-btn" onclick="loadLogs()">Обновить</button>
+    <table id="log-table">
+        <thead>
+            <tr>
+                <th>Время</th>
+                <th>Устройство</th>
+                <th>Широта</th>
+                <th>Долгота</th>
+            </tr>
+        </thead>
+        <tbody id="log-body">
+            <!-- Сюда мы будем вставлять строки из лога -->
+        </tbody>
+    </table>
+
+    <script>
+        async function loadLogs() {
+            try {
+                const response = await fetch('/api/location'); // Запрашиваем лог
+                const logText = await response.text();
+                
+                const logLines = logText.trim().split('\n');
+                const logBody = document.getElementById('log-body');
+                logBody.innerHTML = ''; // Очищаем старые данные
+
+                logLines.forEach(line => {
+                    const parts = line.split(' | ');
+                    if (parts.length >= 3) {
+                        const row = logBody.insertRow();
+                        row.insertCell(0).textContent = parts[0];
+                        row.insertCell(1).textContent = parts[1];
+                        row.insertCell(2).textContent = parts[2].split(': ')[1];
+                        row.insertCell(3).textContent = parts[3].split(': ')[1];
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки логов:', error);
+            }
+        }
+
+        // Загружаем логи при открытии страницы
+        loadLogs();
+    </script>
+</body>
+</html>
